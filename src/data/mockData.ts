@@ -1,0 +1,202 @@
+import { User, Quiz, QuizSubmission, Feedback } from '@/types';
+
+export const mockUsers: User[] = [
+  {
+    id: 'user-1',
+    email: 'admin@example.com',
+    displayName: 'Admin User',
+    role: 'admin',
+    avatar: 'https://github.com/shadcn.png',
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: 'user-2',
+    email: 'student@example.com',
+    displayName: 'John Doe',
+    role: 'user',
+    avatar: 'https://github.com/vercel.png',
+    createdAt: new Date('2024-01-15'),
+  },
+  {
+    id: 'user-3',
+    email: 'jane@example.com',
+    displayName: 'Jane Smith',
+    role: 'user',
+    createdAt: new Date('2024-02-01'),
+  },
+];
+
+export const mockQuizzes: Quiz[] = [
+  {
+    id: 'quiz-1',
+    title: 'JavaScript Fundamentals',
+    description: 'Test your basic knowledge of JavaScript programming language',
+    difficulty: 'easy',
+    category: 'Programming',
+    timeLimit: 15,
+    createdBy: 'user-1',
+    createdAt: new Date('2024-01-10'),
+    isPublished: true,
+    questions: [
+      {
+        id: 'q1-1',
+        question: 'What is the correct way to declare a variable in JavaScript?',
+        options: ['var x = 5;', 'variable x = 5;', 'v x = 5;', 'declare x = 5;'],
+        correctAnswer: 0,
+        explanation: 'The "var" keyword is used to declare variables in JavaScript.',
+        points: 1,
+      },
+      {
+        id: 'q1-2',
+        question: 'Which of the following is NOT a JavaScript data type?',
+        options: ['String', 'Boolean', 'Float', 'Number'],
+        correctAnswer: 2,
+        explanation: 'JavaScript does not have a specific "Float" data type. Numbers in JavaScript are all stored as floating-point.',
+        points: 1,
+      },
+      {
+        id: 'q1-3',
+        question: 'What does "DOM" stand for?',
+        options: ['Document Object Model', 'Data Object Management', 'Dynamic Object Method', 'Document Oriented Markup'],
+        correctAnswer: 0,
+        explanation: 'DOM stands for Document Object Model, which represents the structure of HTML documents.',
+        points: 1,
+      },
+    ],
+  },
+  {
+    id: 'quiz-2',
+    title: 'React Basics',
+    description: 'Test your understanding of React fundamentals and components',
+    difficulty: 'medium',
+    category: 'React',
+    timeLimit: 20,
+    createdBy: 'user-1',
+    createdAt: new Date('2024-01-15'),
+    isPublished: true,
+    questions: [
+      {
+        id: 'q2-1',
+        question: 'What is JSX?',
+        options: [
+          'A JavaScript library',
+          'A syntax extension for JavaScript',
+          'A new programming language',
+          'A CSS framework'
+        ],
+        correctAnswer: 1,
+        explanation: 'JSX is a syntax extension for JavaScript that allows you to write HTML-like code in your JavaScript files.',
+        points: 2,
+      },
+      {
+        id: 'q2-2',
+        question: 'Which hook is used to manage state in functional components?',
+        options: ['useEffect', 'useState', 'useContext', 'useReducer'],
+        correctAnswer: 1,
+        explanation: 'useState is the React hook used to add state to functional components.',
+        points: 2,
+      },
+      {
+        id: 'q2-3',
+        question: 'What is the purpose of useEffect hook?',
+        options: [
+          'To manage component state',
+          'To handle side effects',
+          'To create context',
+          'To optimize performance'
+        ],
+        correctAnswer: 1,
+        explanation: 'useEffect is used to handle side effects in functional components, such as data fetching, subscriptions, or manually changing the DOM.',
+        points: 2,
+      },
+    ],
+  },
+  {
+    id: 'quiz-3',
+    title: 'CSS Advanced',
+    description: 'Advanced CSS concepts including Flexbox, Grid, and modern features',
+    difficulty: 'hard',
+    category: 'CSS',
+    timeLimit: 25,
+    createdBy: 'user-1',
+    createdAt: new Date('2024-01-20'),
+    isPublished: false,
+    questions: [
+      {
+        id: 'q3-1',
+        question: 'Which CSS property is used to create a flexible container?',
+        options: ['display: flex', 'display: grid', 'display: block', 'display: inline'],
+        correctAnswer: 0,
+        explanation: 'display: flex creates a flex container, enabling flexbox layout for its children.',
+        points: 3,
+      },
+      {
+        id: 'q3-2',
+        question: 'What does "fr" unit represent in CSS Grid?',
+        options: ['Fixed ratio', 'Fractional unit', 'Frame rate', 'Full row'],
+        correctAnswer: 1,
+        explanation: 'The "fr" unit represents a fractional unit of the available space in the grid container.',
+        points: 3,
+      },
+    ],
+  },
+];
+
+export const mockSubmissions: QuizSubmission[] = [
+  {
+    id: 'sub-1',
+    quizId: 'quiz-1',
+    userId: 'user-2',
+    answers: [0, 2, 0],
+    score: 2,
+    totalPoints: 3,
+    startedAt: new Date('2024-02-01T10:00:00'),
+    submittedAt: new Date('2024-02-01T10:12:00'),
+    timeSpent: 720,
+  },
+  {
+    id: 'sub-2',
+    quizId: 'quiz-2',
+    userId: 'user-2',
+    answers: [1, 1, 1],
+    score: 6,
+    totalPoints: 6,
+    startedAt: new Date('2024-02-02T14:00:00'),
+    submittedAt: new Date('2024-02-02T14:15:00'),
+    timeSpent: 900,
+  },
+];
+
+export const mockFeedbacks: Feedback[] = [
+  {
+    id: 'feedback-1',
+    userId: 'user-2',
+    userName: 'John Doe',
+    quizId: 'quiz-1',
+    quizTitle: 'JavaScript Fundamentals',
+    message: 'Great quiz! Maybe add more examples for better understanding.',
+    type: 'suggestion',
+    createdAt: new Date('2024-02-01T10:15:00'),
+    isRead: false,
+  },
+  {
+    id: 'feedback-2',
+    userId: 'user-3',
+    userName: 'Jane Smith',
+    message: 'The quiz interface is very user-friendly. Love the design!',
+    type: 'suggestion',
+    createdAt: new Date('2024-02-02T09:30:00'),
+    isRead: false,
+  },
+  {
+    id: 'feedback-3',
+    userId: 'user-2',
+    userName: 'John Doe',
+    quizId: 'quiz-2',
+    quizTitle: 'React Basics',
+    message: 'Question 2 seems to have a typo in the explanation.',
+    type: 'question',
+    createdAt: new Date('2024-02-02T14:20:00'),
+    isRead: true,
+  },
+]; 
