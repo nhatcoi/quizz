@@ -3,14 +3,15 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { mockFeedbacks } from '@/data/mockData';
+import { feedbackAPI } from '@/lib/api';
 import { Feedback } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AdminFeedback() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'question' | 'suggestion' | 'bug_report'>('all');
 
   useEffect(() => {
@@ -19,45 +20,69 @@ export default function AdminFeedback() {
       return;
     }
 
-    setFeedbacks(mockFeedbacks);
+    if (user && user.role === 'admin') {
+      loadFeedbacks();
+    }
   }, [user, loading, router]);
+
+  const loadFeedbacks = async () => {
+    try {
+      setLoadingFeedbacks(true);
+      const data = await feedbackAPI.getFeedback();
+      setFeedbacks(data);
+    } catch (error) {
+      console.error('Error loading feedbacks:', error);
+    } finally {
+      setLoadingFeedbacks(false);
+    }
+  };
 
   const filteredFeedbacks = feedbacks.filter(feedback => {
     switch (filter) {
       case 'unread': return !feedback.isRead;
-      case 'question': return feedback.type === 'question';
-      case 'suggestion': return feedback.type === 'suggestion';
-      case 'bug_report': return feedback.type === 'bug_report';
+      case 'question': return feedback.type === 'QUESTION';
+      case 'suggestion': return feedback.type === 'SUGGESTION';
+      case 'bug_report': return feedback.type === 'BUG_REPORT';
       default: return true;
     }
   });
 
-  const markAsRead = (feedbackId: string) => {
-    setFeedbacks(prev => 
-      prev.map(f => f.id === feedbackId ? { ...f, isRead: true } : f)
-    );
+  const markAsRead = async (feedbackId: string) => {
+    try {
+      await feedbackAPI.updateFeedback(feedbackId, { isRead: true });
+      setFeedbacks(prev => 
+        prev.map(f => f.id === feedbackId ? { ...f, isRead: true } : f)
+      );
+    } catch (error) {
+      console.error('Error marking feedback as read:', error);
+    }
   };
 
-  const markAsUnread = (feedbackId: string) => {
-    setFeedbacks(prev => 
-      prev.map(f => f.id === feedbackId ? { ...f, isRead: false } : f)
-    );
+  const markAsUnread = async (feedbackId: string) => {
+    try {
+      await feedbackAPI.updateFeedback(feedbackId, { isRead: false });
+      setFeedbacks(prev => 
+        prev.map(f => f.id === feedbackId ? { ...f, isRead: false } : f)
+      );
+    } catch (error) {
+      console.error('Error marking feedback as unread:', error);
+    }
   };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case 'question': return 'Câu hỏi';
-      case 'suggestion': return 'Góp ý';
-      case 'bug_report': return 'Báo lỗi';
+      case 'QUESTION': return 'Câu hỏi';
+      case 'SUGGESTION': return 'Góp ý';
+      case 'BUG_REPORT': return 'Báo lỗi';
       default: return type;
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'question': return 'bg-blue-100 text-blue-700';
-      case 'suggestion': return 'bg-green-100 text-green-700';
-      case 'bug_report': return 'bg-red-100 text-red-700';
+      case 'QUESTION': return 'bg-blue-100 text-blue-700';
+      case 'SUGGESTION': return 'bg-green-100 text-green-700';
+      case 'BUG_REPORT': return 'bg-red-100 text-red-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -150,7 +175,7 @@ export default function AdminFeedback() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <CardTitle className="text-lg">{feedback.userName}</CardTitle>
+                        <CardTitle className="text-lg">{feedback.user?.displayName || 'User'}</CardTitle>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(feedback.type)}`}>
                           {getTypeLabel(feedback.type)}
                         </span>
@@ -160,13 +185,13 @@ export default function AdminFeedback() {
                           </span>
                         )}
                       </div>
-                      {feedback.quizTitle && (
+                      {feedback.quiz?.title && (
                         <p className="text-sm text-gray-600 mb-1">
-                          Về bài quiz: <span className="font-medium">{feedback.quizTitle}</span>
+                          Về bài quiz: <span className="font-medium">{feedback.quiz.title}</span>
                         </p>
                       )}
                       <p className="text-xs text-gray-500">
-                        {feedback.createdAt.toLocaleDateString('vi-VN')} lúc {feedback.createdAt.toLocaleTimeString('vi-VN')}
+                        {new Date(feedback.createdAt).toLocaleDateString('vi-VN')} lúc {new Date(feedback.createdAt).toLocaleTimeString('vi-VN')}
                       </p>
                     </div>
                     <div className="flex space-x-2">

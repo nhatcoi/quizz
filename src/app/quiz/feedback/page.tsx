@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { mockQuizzes } from '@/data/mockData';
+import { quizAPI, feedbackAPI } from '@/lib/api';
 import { Quiz } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -25,13 +25,21 @@ export default function FeedbackPage() {
       return;
     }
 
-    if (quizId) {
-      const foundQuiz = mockQuizzes.find(q => q.id === quizId);
-      if (foundQuiz) {
-        setQuiz(foundQuiz);
-      }
+    if (user && quizId) {
+      loadQuiz();
     }
   }, [user, loading, router, quizId]);
+
+  const loadQuiz = async () => {
+    if (!quizId) return;
+    
+    try {
+      const quizData = await quizAPI.getQuiz(quizId);
+      setQuiz(quizData);
+    } catch (error) {
+      console.error('Error loading quiz:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,26 +48,16 @@ export default function FeedbackPage() {
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // In real app, this would save to database
-      const feedback = {
-        id: `feedback-${Date.now()}`,
-        userId: user.id,
-        userName: user.displayName,
-        quizId: quiz?.id,
-        quizTitle: quiz?.title,
+      await feedbackAPI.createFeedback({
         message: message.trim(),
-        type,
-        createdAt: new Date(),
-        isRead: false,
-      };
+        type: type.toUpperCase(),
+        quizId: quiz?.id,
+      });
 
-      console.log('Feedback submitted:', feedback);
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting feedback:', error);
+      alert('Có lỗi xảy ra khi gửi phản hồi. Vui lòng thử lại.');
     } finally {
       setIsSubmitting(false);
     }

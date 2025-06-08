@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { mockQuizzes } from '@/data/mockData';
+import { quizAPI, submissionAPI } from '@/lib/api';
 import { Quiz, QuizProgress } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -15,13 +15,15 @@ export default function QuizPage({ params }: QuizPageProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [loadingQuiz, setLoadingQuiz] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<QuizProgress>({
     currentQuestion: 0,
     answers: [],
     startTime: new Date(),
   });
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -29,28 +31,46 @@ export default function QuizPage({ params }: QuizPageProps) {
       return;
     }
 
-    // Load quiz
-    const foundQuiz = mockQuizzes.find(q => q.id === params.id && q.isPublished);
-    if (!foundQuiz) {
-      router.push('/dashboard');
-      return;
+    if (user) {
+      loadQuiz();
     }
+  }, [params.id, user, loading, router]);
 
-    setQuiz(foundQuiz);
-    setProgress(prev => ({
-      ...prev,
-      answers: new Array(foundQuiz.questions.length).fill(null),
-      timeRemaining: foundQuiz.timeLimit ? foundQuiz.timeLimit * 60 : null,
-    }));
+  const loadQuiz = async () => {
+    try {
+      setLoadingQuiz(true);
+      setError(null);
+      const quizData = await quizAPI.getQuiz(params.id);
+      
+      if (!quizData.isPublished) {
+        router.push('/dashboard');
+        return;
+      }
 
-    if (foundQuiz.timeLimit) {
-      setTimeRemaining(foundQuiz.timeLimit * 60);
+      setQuiz(quizData);
+      
+      // Initialize progress
+      const questionCount = quizData.questions?.length || 0;
+      setProgress(prev => ({
+        ...prev,
+        answers: new Array(questionCount).fill(null),
+        timeRemaining: quizData.timeLimit ? quizData.timeLimit * 60 : undefined,
+      }));
+
+      if (quizData.timeLimit) {
+        setTimeRemaining(quizData.timeLimit * 60);
+      }
+    } catch (error) {
+      console.error('Error loading quiz:', error);
+      setError('Không thể tải quiz. Vui lòng thử lại.');
+    } finally {
+      setLoadingQuiz(false);
     }
-  }, [user, loading, router, params.id]);
+  };
 
   // Timer effect
   useEffect(() => {
-    if (timeRemaining === null || timeRemaining <= 0 || isSubmitted) return;
+    if (timeRemaining === null || timeRemaining <= 0 || isSubmitting) return;
 
     const timer = setInterval(() => {
       setTimeRemaining(prev => {
@@ -63,7 +83,7 @@ export default function QuizPage({ params }: QuizPageProps) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining, isSubmitted]);
+  }, [timeRemaining, isSubmitting]);
 
   const handleAnswerSelect = (answerIndex: number) => {
     setProgress(prev => {
@@ -74,7 +94,7 @@ export default function QuizPage({ params }: QuizPageProps) {
   };
 
   const handleNext = () => {
-    if (quiz && progress.currentQuestion < quiz.questions.length - 1) {
+    if (quiz?.questions && progress.currentQuestion < quiz.questions.length - 1) {
       setProgress(prev => ({ ...prev, currentQuestion: prev.currentQuestion + 1 }));
     }
   };
@@ -85,35 +105,30 @@ export default function QuizPage({ params }: QuizPageProps) {
     }
   };
 
-  const handleSubmit = () => {
-    if (!quiz || !user) return;
+  const handleSubmit = async () => {
+    if (!quiz || !user || isSubmitting) return;
     
-    // Calculate score
-    let score = 0;
-    let totalPoints = 0;
+    setIsSubmitting(true);
     
-    quiz.questions.forEach((question, index) => {
-      totalPoints += question.points;
-      if (progress.answers[index] === question.correctAnswer) {
-        score += question.points;
-      }
-    });
+    try {
+      const timeSpent = Math.floor((new Date().getTime() - progress.startTime.getTime()) / 1000);
+      
+      const submission = await submissionAPI.submitQuiz({
+        quizId: quiz.id,
+        answers: progress.answers.map(answer => answer ?? -1), // Convert null to -1
+        timeSpent,
+        startedAt: progress.startTime.toISOString(),
+      });
 
-    // Store result and redirect to results page
-    const submission = {
-      quizId: quiz.id,
-      userId: user.id,
-      answers: progress.answers,
-      score,
-      totalPoints,
-      startedAt: progress.startTime,
-      submittedAt: new Date(),
-      timeSpent: Math.floor((new Date().getTime() - progress.startTime.getTime()) / 1000),
-    };
-
-    localStorage.setItem('lastQuizResult', JSON.stringify(submission));
-    setIsSubmitted(true);
-    router.push(`/quiz/${quiz.id}/result`);
+      // Store result for results page
+      localStorage.setItem('lastQuizResult', JSON.stringify(submission));
+      router.push(`/quiz/${quiz.id}/result`);
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      alert('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -122,7 +137,7 @@ export default function QuizPage({ params }: QuizPageProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (loading) {
+  if (loading || loadingQuiz) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -130,7 +145,23 @@ export default function QuizPage({ params }: QuizPageProps) {
     );
   }
 
-  if (!user || !quiz) {
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={loadQuiz}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !quiz || !quiz.questions || quiz.questions.length === 0) {
     return null;
   }
 
@@ -212,13 +243,13 @@ export default function QuizPage({ params }: QuizPageProps) {
                     onChange={() => handleAnswerSelect(index)}
                     className="sr-only"
                   />
-                  <div className={`w-4 h-4 rounded-full border-2 mr-3 flex-shrink-0 ${
+                  <div className={`w-4 h-4 rounded-full border-2 mr-3 flex items-center justify-center ${
                     progress.answers[progress.currentQuestion] === index
                       ? 'border-blue-500 bg-blue-500'
                       : 'border-gray-300'
                   }`}>
                     {progress.answers[progress.currentQuestion] === index && (
-                      <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
+                      <div className="w-2 h-2 rounded-full bg-white"></div>
                     )}
                   </div>
                   <span className="text-gray-900">{option}</span>
@@ -239,15 +270,16 @@ export default function QuizPage({ params }: QuizPageProps) {
           </button>
 
           <div className="text-sm text-gray-500">
-            {progress.answers.filter(a => a !== null).length} / {quiz.questions.length} câu đã trả lời
+            {progress.answers.filter(answer => answer !== null).length} / {quiz.questions.length} câu đã trả lời
           </div>
 
           {progress.currentQuestion === quiz.questions.length - 1 ? (
             <button
               onClick={handleSubmit}
-              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Nộp bài
+              {isSubmitting ? 'Đang nộp bài...' : 'Nộp bài'}
             </button>
           ) : (
             <button

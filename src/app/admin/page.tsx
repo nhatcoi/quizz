@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { mockQuizzes, mockFeedbacks } from '@/data/mockData';
+import { quizAPI, feedbackAPI } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AdminDashboard() {
@@ -15,6 +15,8 @@ export default function AdminDashboard() {
     totalFeedbacks: 0,
     unreadFeedbacks: 0,
   });
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [recentFeedbacks, setRecentFeedbacks] = useState<any[]>([]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) {
@@ -22,19 +24,41 @@ export default function AdminDashboard() {
       return;
     }
 
-    // Calculate stats
-    const totalQuizzes = mockQuizzes.length;
-    const publishedQuizzes = mockQuizzes.filter(q => q.isPublished).length;
-    const totalFeedbacks = mockFeedbacks.length;
-    const unreadFeedbacks = mockFeedbacks.filter(f => !f.isRead).length;
-
-    setStats({
-      totalQuizzes,
-      publishedQuizzes,
-      totalFeedbacks,
-      unreadFeedbacks,
-    });
+    if (user && user.role === 'admin') {
+      loadStats();
+    }
   }, [user, loading, router]);
+
+  const loadStats = async () => {
+    try {
+      setLoadingStats(true);
+      
+      // Load quizzes and feedbacks in parallel
+      const [quizzes, feedbacks] = await Promise.all([
+        quizAPI.getQuizzes(),
+        feedbackAPI.getFeedback()
+      ]);
+
+      const totalQuizzes = quizzes.length;
+      const publishedQuizzes = quizzes.filter((q: any) => q.isPublished).length;
+      const totalFeedbacks = feedbacks.length;
+      const unreadFeedbacks = feedbacks.filter((f: any) => !f.isRead).length;
+
+      setStats({
+        totalQuizzes,
+        publishedQuizzes,
+        totalFeedbacks,
+        unreadFeedbacks,
+      });
+
+      // Set recent feedbacks (latest 3)
+      setRecentFeedbacks(feedbacks.slice(0, 3));
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -222,7 +246,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockFeedbacks.slice(0, 3).map((feedback) => (
+              {recentFeedbacks.map((feedback: any) => (
                 <div key={feedback.id} className="flex items-start space-x-3 p-3 border rounded-lg">
                   <div className="flex-shrink-0">
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -233,13 +257,16 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">
-                      {feedback.userName} đã gửi {feedback.type === 'suggestion' ? 'góp ý' : feedback.type === 'question' ? 'câu hỏi' : 'báo lỗi'}
+                      {feedback.user?.displayName || 'User'} đã gửi {
+                        feedback.type === 'SUGGESTION' ? 'góp ý' : 
+                        feedback.type === 'QUESTION' ? 'câu hỏi' : 'báo lỗi'
+                      }
                     </p>
                     <p className="text-sm text-gray-500 truncate">
                       {feedback.message}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {feedback.createdAt.toLocaleDateString('vi-VN')}
+                      {new Date(feedback.createdAt).toLocaleDateString('vi-VN')}
                     </p>
                   </div>
                   {!feedback.isRead && (

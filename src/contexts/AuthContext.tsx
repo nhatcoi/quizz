@@ -12,7 +12,7 @@ import {
   User as FirebaseUser
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
-import { mockUsers } from '@/data/mockData';
+import { userAPI } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -29,25 +29,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Convert Firebase User to our User type
-  const convertFirebaseUser = (firebaseUser: FirebaseUser): User => {
-    // Check if user is in mockUsers (admin check)
-    const existingUser = mockUsers.find(u => u.email === firebaseUser.email);
-    
-    return {
-      id: firebaseUser.uid,
-      email: firebaseUser.email || '',
-      displayName: firebaseUser.displayName || 'User',
-      role: existingUser?.role || 'user', // Default to 'user', unless found in mockUsers
-      avatar: firebaseUser.photoURL || undefined,
-      createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
-    };
+  // Convert Firebase User to our User type and sync with database
+  const convertFirebaseUser = async (firebaseUser: FirebaseUser): Promise<User> => {
+    try {
+      // Create or update user in database
+      const dbUser = await userAPI.createOrUpdateUser({
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || 'User',
+        avatar: firebaseUser.photoURL || undefined,
+      });
+
+      return {
+        id: dbUser.id,
+        email: dbUser.email,
+        displayName: dbUser.displayName,
+        role: dbUser.role === 'ADMIN' ? 'admin' : 'user',
+        avatar: dbUser.avatar,
+        createdAt: new Date(dbUser.createdAt),
+      };
+    } catch (error) {
+      console.error('Error syncing user with database:', error);
+      // Fallback to Firebase user data
+      return {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || 'User',
+        role: firebaseUser.email === 'admin@example.com' ? 'admin' : 'user',
+        avatar: firebaseUser.photoURL || undefined,
+        createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
+      };
+    }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const convertedUser = convertFirebaseUser(firebaseUser);
+        const convertedUser = await convertFirebaseUser(firebaseUser);
         setUser(convertedUser);
       } else {
         setUser(null);
@@ -62,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      const convertedUser = convertFirebaseUser(result.user);
+      const convertedUser = await convertFirebaseUser(result.user);
       setUser(convertedUser);
     } catch (error: any) {
       console.error('Sign in error:', error);
@@ -76,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const convertedUser = convertFirebaseUser(result.user);
+      const convertedUser = await convertFirebaseUser(result.user);
       setUser(convertedUser);
     } catch (error: any) {
       console.error('Google sign in error:', error);
@@ -96,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         displayName: displayName
       });
 
-      const convertedUser = convertFirebaseUser({
+      const convertedUser = await convertFirebaseUser({
         ...result.user,
         displayName
       } as FirebaseUser);

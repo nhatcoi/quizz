@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { mockQuizzes } from '@/data/mockData';
+import { quizAPI } from '@/lib/api';
 import { Quiz } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -11,16 +11,33 @@ export default function Dashboard() {
   const { user, loading, signOut } = useAuth();
   const router = useRouter();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/');
+      return;
     }
     
-    // Load published quizzes only
-    const publishedQuizzes = mockQuizzes.filter(quiz => quiz.isPublished);
-    setQuizzes(publishedQuizzes);
+    if (user) {
+      loadQuizzes();
+    }
   }, [user, loading, router]);
+
+  const loadQuizzes = async () => {
+    try {
+      setLoadingQuizzes(true);
+      setError(null);
+      const data = await quizAPI.getQuizzes();
+      setQuizzes(data);
+    } catch (error) {
+      console.error('Error loading quizzes:', error);
+      setError('Không thể tải danh sách quiz. Vui lòng thử lại.');
+    } finally {
+      setLoadingQuizzes(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -35,7 +52,7 @@ export default function Dashboard() {
   }
 
   const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
+    switch (difficulty.toLowerCase()) {
       case 'easy': return 'text-green-600 bg-green-100';
       case 'medium': return 'text-yellow-600 bg-yellow-100';
       case 'hard': return 'text-red-600 bg-red-100';
@@ -44,7 +61,7 @@ export default function Dashboard() {
   };
 
   const getDifficultyText = (difficulty: string) => {
-    switch (difficulty) {
+    switch (difficulty.toLowerCase()) {
       case 'easy': return 'Dễ';
       case 'medium': return 'Trung bình';
       case 'hard': return 'Khó';
@@ -87,53 +104,87 @@ export default function Dashboard() {
           <p className="text-gray-600">Chọn một bài quiz để bắt đầu học tập</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {quizzes.map((quiz) => (
-            <Card key={quiz.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-xl">{quiz.title}</CardTitle>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getDifficultyColor(quiz.difficulty)}`}>
-                    {getDifficultyText(quiz.difficulty)}
-                  </span>
-                </div>
-                <CardDescription className="text-gray-600">
-                  {quiz.description}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Danh mục:</span>
-                    <span className="font-medium">{quiz.category}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Số câu hỏi:</span>
-                    <span className="font-medium">{quiz.questions.length}</span>
-                  </div>
-                  {quiz.timeLimit && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Thời gian:</span>
-                      <span className="font-medium">{quiz.timeLimit} phút</span>
-                    </div>
-                  )}
-                </div>
-                
-                <button
-                  onClick={() => router.push(`/quiz/${quiz.id}`)}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
-                >
-                  Bắt đầu làm bài
-                </button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {quizzes.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">Chưa có bài quiz nào được phát hành.</p>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            {error}
+            <button 
+              onClick={loadQuizzes}
+              className="ml-2 underline hover:no-underline"
+            >
+              Thử lại
+            </button>
           </div>
+        )}
+
+        {loadingQuizzes ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 mb-4">
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="h-10 bg-gray-200 rounded"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {quizzes.map((quiz) => (
+                <Card key={quiz.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <CardHeader>
+                    <div className="flex justify-between items-start mb-2">
+                      <CardTitle className="text-xl">{quiz.title}</CardTitle>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getDifficultyColor(quiz.difficulty)}`}>
+                        {getDifficultyText(quiz.difficulty)}
+                      </span>
+                    </div>
+                    <CardDescription className="text-gray-600">
+                      {quiz.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Danh mục:</span>
+                        <span className="font-medium">{quiz.category}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Số câu hỏi:</span>
+                        <span className="font-medium">{quiz.questionCount || quiz.questions?.length || 0}</span>
+                      </div>
+                      {quiz.timeLimit && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Thời gian:</span>
+                          <span className="font-medium">{quiz.timeLimit} phút</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={() => router.push(`/quiz/${quiz.id}`)}
+                      className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Bắt đầu làm bài
+                    </button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {!loadingQuizzes && quizzes.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">Chưa có bài quiz nào được phát hành.</p>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { mockQuizzes } from '@/data/mockData';
+import { quizAPI } from '@/lib/api';
 import { Quiz, QuizSubmission } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -23,23 +23,36 @@ export default function ResultPage({ params }: ResultPageProps) {
       return;
     }
 
-    // Load quiz
-    const foundQuiz = mockQuizzes.find(q => q.id === params.id);
-    if (!foundQuiz) {
-      router.push('/dashboard');
-      return;
+    if (user) {
+      loadQuizAndResult();
     }
-
-    // Load result from localStorage
-    const savedResult = localStorage.getItem('lastQuizResult');
-    if (!savedResult) {
-      router.push('/dashboard');
-      return;
-    }
-
-    setQuiz(foundQuiz);
-    setResult(JSON.parse(savedResult));
   }, [user, loading, router, params.id]);
+
+  const loadQuizAndResult = async () => {
+    try {
+      // Load quiz
+      const quizData = await quizAPI.getQuiz(params.id);
+      setQuiz(quizData);
+
+      // Load result from localStorage
+      const savedResult = localStorage.getItem('lastQuizResult');
+      if (!savedResult) {
+        router.push('/dashboard');
+        return;
+      }
+
+      const result = JSON.parse(savedResult);
+      if (result.quizId !== params.id) {
+        router.push('/dashboard');
+        return;
+      }
+
+      setResult(result);
+    } catch (error) {
+      console.error('Error loading quiz:', error);
+      router.push('/dashboard');
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -71,7 +84,7 @@ export default function ResultPage({ params }: ResultPageProps) {
     );
   }
 
-  if (!user || !quiz || !result) {
+  if (!user || !quiz || !quiz.questions || !result) {
     return null;
   }
 
@@ -125,7 +138,7 @@ export default function ResultPage({ params }: ResultPageProps) {
               <div className="p-4 bg-green-50 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">
                   {result.answers.filter((answer: number, index: number) => 
-                    answer === quiz.questions[index].correctAnswer
+                    answer === quiz.questions?.[index]?.correctAnswer
                   ).length}
                 </div>
                 <div className="text-sm text-gray-600">Câu đúng</div>
