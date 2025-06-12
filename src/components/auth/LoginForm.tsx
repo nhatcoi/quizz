@@ -156,14 +156,14 @@ export function LoginForm() {
             </button>
           </div>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-md">
-            <p className="text-sm text-gray-600 font-medium mb-2">Lưu ý:</p>
-            <div className="space-y-1 text-xs text-gray-500">
-              <p>• Đăng nhập với Google để trải nghiệm nhanh chóng</p>
-              <p>• Admin: admin@example.com (nếu đăng ký bằng email này)</p>
-              <p>• Tài khoản mới mặc định là User</p>
-            </div>
-          </div>
+          {/*<div className="mt-6 p-4 bg-gray-50 rounded-md">*/}
+          {/*  <p className="text-sm text-gray-600 font-medium mb-2">Lưu ý:</p>*/}
+          {/*  <div className="space-y-1 text-xs text-gray-500">*/}
+          {/*    <p>• Đăng nhập với Google để trải nghiệm nhanh chóng</p>*/}
+          {/*    <p>• Admin: admin@example.com (nếu đăng ký bằng email này)</p>*/}
+          {/*    <p>• Tài khoản mới mặc định là User</p>*/}
+          {/*  </div>*/}
+          {/*</div>*/}
         </CardContent>
       </Card>
     </div>

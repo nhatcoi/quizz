@@ -113,6 +113,15 @@ export const PUT = requireAdmin(async (request: AuthenticatedRequest, { params }
 
       // Update questions if provided
       if (questions) {
+        // Validate questions
+        for (const question of questions) {
+          if (!question.question || !question.options || question.options.length < 2 || 
+              question.correctAnswer === undefined || question.correctAnswer < 0 || 
+              question.correctAnswer >= question.options.length) {
+            throw new Error('Invalid question format');
+          }
+        }
+
         // Delete existing questions
         await tx.question.deleteMany({
           where: { quizId: id }
