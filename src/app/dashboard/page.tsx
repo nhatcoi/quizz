@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { quizAPI } from '@/lib/api';
 import { Quiz } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {Button} from "@/components/ui/button";
 
 export default function Dashboard() {
   const { user, loading, signOut } = useAuth();
@@ -168,12 +169,12 @@ export default function Dashboard() {
                       )}
                     </div>
                     
-                    <button
+                    <Button
                       onClick={() => router.push(`/quiz/${quiz.id}`)}
                       className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
                     >
                       Bắt đầu làm bài
-                    </button>
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
