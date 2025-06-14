@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  displayName String
+  role        Role     @default(USER)
+  avatar      String?
+  firebaseUid String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  createdQuizzes Quiz[]        @relation("QuizCreator")
+  submissions    Submission[]
+  feedbacks      Feedback[]
+
+  @@map("users")
+}
+
+model Quiz {
+  id          String     @id @default(cuid())
+  title       String
+  description String
+  timeLimit   Int?       // in minutes
+  difficulty  Difficulty @default(MEDIUM)
+  category    String
+  isPublished Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  createdBy   String
+  creator     User         @relation("QuizCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  questions   Question[]
+  submissions Submission[]
+  feedbacks   Feedback[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  question      String
+  options       Json     // Array of strings
+  correctAnswer Int      // Index of correct option
+  explanation   String?
+  points        Int      @default(1)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("questions")
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  answers     Json     // Array of selected option indices
+  score       Int
+  totalPoints Int
+  timeSpent   Int      // in seconds
+  startedAt   DateTime
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("submissions")
+}
+
+model Feedback {
+  id        String      @id @default(cuid())
+  message   String
+  type      FeedbackType @default(SUGGESTION)
+  isRead    Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId String?
+  quiz   Quiz?  @relation(fields: [quizId], references: [id], onDelete: SetNull)
+
+  @@map("feedbacks")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum FeedbackType {
+  QUESTION
+  SUGGESTION
+  BUG_REPORT
+}
